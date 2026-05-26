@@ -1,0 +1,3 @@
+Analyze the email for phishing, spam, suspicious URLs, sender spoofing, urgency pressure, credential theft, and malicious intent.
+
+Return a threat level of safe, suspicious, spam, phishing, or malicious with short reasons.
