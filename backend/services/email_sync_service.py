@@ -18,15 +18,14 @@ class EmailSyncService:
         self.sync_state = SyncStateService()
         self._lock = asyncio.Lock()
 
-    async def sync(self, limit: int = 25, mode: str = "initial") -> EmailIngestResponse:
+    async def sync(self, account_email: str, limit: int = 25, mode: str = "initial") -> EmailIngestResponse:
         async with self._lock:
-            profile = await self.gmail_service.fetch_saved_account_profile()
-            account_email = profile.get("email") if profile else None
-            if not account_email:
+            tokens = await self.supabase_service.get_user_tokens(account_email)
+            if not tokens or not tokens.get("refresh_token"):
                 raise RuntimeError("No connected Google account found. Visit /auth/google/login first.")
 
             gmail_query = self._build_query(mode)
-            raw_emails = await self.gmail_service.fetch_inbox(limit=limit, query=gmail_query)
+            raw_emails = await self.gmail_service.fetch_inbox(limit=limit, query=gmail_query, tokens=tokens)
             processed: list[EmailItem] = []
 
             if mode == "initial":

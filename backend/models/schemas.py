@@ -17,6 +17,8 @@ class TokenResponse(BaseModel):
     refresh_token: str | None = None
     expires_in: int | None = None
     token_type: str = "Bearer"
+    session_token: str | None = None
+    email: str | None = None
 
 
 class EmailItem(BaseModel):

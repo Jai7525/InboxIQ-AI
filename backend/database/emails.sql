@@ -44,3 +44,56 @@ create unique index if not exists email_metadata_account_email_id_idx
 
 create index if not exists email_metadata_account_idx
   on public.email_metadata (account_email);
+
+alter table public.emails enable row level security;
+alter table public.email_metadata enable row level security;
+
+drop policy if exists "Users see own emails" on public.emails;
+create policy "Users see own emails"
+  on public.emails
+  for select
+  using (auth.jwt() ->> 'email' = account_email);
+
+drop policy if exists "Users insert own emails" on public.emails;
+create policy "Users insert own emails"
+  on public.emails
+  for insert
+  with check (auth.jwt() ->> 'email' = account_email);
+
+drop policy if exists "Users update own emails" on public.emails;
+create policy "Users update own emails"
+  on public.emails
+  for update
+  using (auth.jwt() ->> 'email' = account_email)
+  with check (auth.jwt() ->> 'email' = account_email);
+
+drop policy if exists "Users delete own emails" on public.emails;
+create policy "Users delete own emails"
+  on public.emails
+  for delete
+  using (auth.jwt() ->> 'email' = account_email);
+
+drop policy if exists "Users see own email metadata" on public.email_metadata;
+create policy "Users see own email metadata"
+  on public.email_metadata
+  for select
+  using (auth.jwt() ->> 'email' = account_email);
+
+drop policy if exists "Users insert own email metadata" on public.email_metadata;
+create policy "Users insert own email metadata"
+  on public.email_metadata
+  for insert
+  with check (auth.jwt() ->> 'email' = account_email);
+
+drop policy if exists "Users update own email metadata" on public.email_metadata;
+create policy "Users update own email metadata"
+  on public.email_metadata
+  for update
+  using (auth.jwt() ->> 'email' = account_email)
+  with check (auth.jwt() ->> 'email' = account_email);
+
+drop policy if exists "Users delete own email metadata" on public.email_metadata;
+create policy "Users delete own email metadata"
+  on public.email_metadata
+  for delete
+  using (auth.jwt() ->> 'email' = account_email);

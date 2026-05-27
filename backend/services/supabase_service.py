@@ -121,16 +121,6 @@ class SupabaseService:
         data.sort(key=lambda item: item.get("received_at", ""), reverse=True)
         return [EmailItem(**item) for item in data[:limit]]
 
-    async def get_active_account_email(self) -> str | None:
-        from backend.services.gmail_service import GmailService
-
-        profile = await GmailService().fetch_saved_account_profile()
-        if profile and profile.get("email"):
-            return profile["email"]
-
-        user = await self.get_latest_user()
-        return user.get("email") if user else None
-
     async def upsert_user(
         self,
         *,
@@ -138,12 +128,16 @@ class SupabaseService:
         name: str | None = None,
         google_id: str | None = None,
         refresh_token: str | None = None,
+        access_token: str | None = None,
+        token_payload: dict | None = None,
     ) -> dict:
         payload = {
             "email": email,
             "name": name,
             "google_id": google_id,
             "refresh_token": refresh_token,
+            "access_token": access_token,
+            "token_payload": token_payload,
         }
         payload = {key: value for key, value in payload.items() if value is not None}
 
@@ -160,7 +154,9 @@ class SupabaseService:
     async def clear_user_refresh_token(self, email: str | None = None) -> None:
         if email and self.client:
             try:
-                self.client.table(USERS_TABLE).update({"refresh_token": None}).eq("email", email).execute()
+                self.client.table(USERS_TABLE).update(
+                    {"refresh_token": None, "access_token": None, "token_payload": None}
+                ).eq("email", email).execute()
             except Exception as exc:
                 logger.warning("Could not clear Supabase refresh token for %s: %s", email, exc)
 
@@ -169,14 +165,65 @@ class SupabaseService:
             updated = []
             for user in users:
                 if email is None or user.get("email") == email:
-                    user = {**user, "refresh_token": None}
+                    user = {**user, "refresh_token": None, "access_token": None, "token_payload": None}
                 updated.append(user)
             self.users_path.write_text(json.dumps(updated, indent=2), encoding="utf-8")
+
+    async def get_user_by_email(self, email: str) -> dict | None:
+        if self.client:
+            try:
+                response = (
+                    self.client.table(USERS_TABLE)
+                    .select("id,email,name,google_id,refresh_token,access_token,token_payload,created_at")
+                    .eq("email", email)
+                    .limit(1)
+                    .execute()
+                )
+                if response.data:
+                    return response.data[0]
+            except Exception as exc:
+                logger.warning("Could not read Supabase user %s; falling back to local data: %s", email, exc)
+
+        if not self.users_path.exists():
+            return None
+
+        users = json.loads(self.users_path.read_text(encoding="utf-8"))
+        return next((user for user in users if user.get("email") == email), None)
+
+    async def get_user_tokens(self, email: str) -> dict | None:
+        user = await self.get_user_by_email(email)
+        if not user:
+            return None
+        token_payload = user.get("token_payload") or {}
+        return {
+            **token_payload,
+            "access_token": user.get("access_token") or token_payload.get("access_token"),
+            "refresh_token": user.get("refresh_token") or token_payload.get("refresh_token"),
+        }
+
+    async def list_connected_users(self) -> list[dict]:
+        if self.client:
+            try:
+                response = (
+                    self.client.table(USERS_TABLE)
+                    .select("id,email,name,google_id,refresh_token")
+                    .not_.is_("refresh_token", "null")
+                    .execute()
+                )
+                return response.data or []
+            except Exception as exc:
+                logger.warning("Could not list connected Supabase users; falling back to local data: %s", exc)
+
+        if not self.users_path.exists():
+            return []
+
+        users = json.loads(self.users_path.read_text(encoding="utf-8"))
+        return [user for user in users if user.get("refresh_token")]
 
     async def get_latest_user(self) -> dict | None:
         if self.client:
             try:
-                response = self.client.table(USERS_TABLE).select("id,email,name,google_id,created_at").order("created_at", desc=True).limit(1).execute()
+                response = self.client.table(USERS_TABLE).select("id,email,name,google_id,refresh_token,created_at").order("created_at", desc=True).limit(1).execute()
                 if response.data:
                     return response.data[0]
             except Exception as exc:

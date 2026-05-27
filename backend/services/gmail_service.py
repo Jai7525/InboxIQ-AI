@@ -2,7 +2,6 @@ import base64
 import json
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
-from pathlib import Path
 from urllib.request import Request as UrlRequest, urlopen
 from urllib.parse import urlencode
 from uuid import uuid4
@@ -37,7 +36,6 @@ class GmailService:
                 refresh_token="mock-refresh-token",
                 expires_in=3600,
             )
-            self._save_tokens(token_response.model_dump())
             return token_response
 
         try:
@@ -70,7 +68,6 @@ class GmailService:
             "client_secret": credentials.client_secret,
             "scopes": credentials.scopes,
         }
-        self._save_tokens(token_payload)
         return TokenResponse(**token_payload)
 
     async def fetch_user_profile(self, access_token: str) -> dict:
@@ -88,16 +85,7 @@ class GmailService:
         with urlopen(request, timeout=10) as response:
             return json.loads(response.read().decode("utf-8"))
 
-    def clear_tokens(self) -> None:
-        path = self._token_path()
-        if path.exists():
-            path.unlink()
-
-    def load_tokens(self) -> dict | None:
-        return self._load_tokens()
-
-    async def fetch_saved_account_profile(self) -> dict | None:
-        tokens = self._load_tokens()
+    async def fetch_saved_account_profile(self, tokens: dict | None = None) -> dict | None:
         if not tokens:
             return None
 
@@ -109,7 +97,7 @@ class GmailService:
                 pass
 
         try:
-            service = self._build_gmail_client()
+            service = self._build_gmail_client(tokens)
             profile = service.users().getProfile(userId="me").execute()
         except Exception:
             return None
@@ -124,11 +112,16 @@ class GmailService:
             "id": profile.get("historyId"),
         }
 
-    async def fetch_inbox(self, limit: int = 25, query: str = "newer_than:7d in:inbox") -> list[dict]:
+    async def fetch_inbox(
+        self,
+        limit: int = 25,
+        query: str = "newer_than:7d in:inbox",
+        tokens: dict | None = None,
+    ) -> list[dict]:
         if settings.MOCK_MODE:
             return self._mock_emails(limit)
 
-        service = self._build_gmail_client()
+        service = self._build_gmail_client(tokens)
         response = (
             service.users()
             .messages()
@@ -147,7 +140,7 @@ class GmailService:
             emails.append(self._parse_message(detail))
         return emails
 
-    def _build_gmail_client(self):
+    def _build_gmail_client(self, tokens: dict | None):
         try:
             from google.auth.transport.requests import Request
             from google.oauth2.credentials import Credentials
@@ -155,7 +148,6 @@ class GmailService:
         except ImportError as exc:
             raise RuntimeError("Install google-api-python-client and google-auth to fetch Gmail.") from exc
 
-        tokens = self._load_tokens()
         if not tokens:
             raise RuntimeError("No Google tokens found. Visit /auth/google/login first.")
 
@@ -170,7 +162,6 @@ class GmailService:
         if credentials.expired and credentials.refresh_token:
             credentials.refresh(Request())
             tokens["access_token"] = credentials.token
-            self._save_tokens(tokens)
         return build("gmail", "v1", credentials=credentials, cache_discovery=False)
 
     def _parse_message(self, message: dict) -> dict:
@@ -213,20 +204,6 @@ class GmailService:
     def _decode_body(self, value: str) -> str:
         padded = value + "=" * (-len(value) % 4)
         return base64.urlsafe_b64decode(padded.encode("utf-8")).decode("utf-8", errors="ignore")
-
-    def _token_path(self) -> Path:
-        return settings.DATA_DIR / "google_tokens.json"
-
-    def _save_tokens(self, tokens: dict) -> None:
-        path = self._token_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(tokens, indent=2), encoding="utf-8")
-
-    def _load_tokens(self) -> dict | None:
-        path = self._token_path()
-        if not path.exists():
-            return None
-        return json.loads(path.read_text(encoding="utf-8"))
 
     def _mock_emails(self, limit: int) -> list[dict]:
         now = datetime.now(timezone.utc)

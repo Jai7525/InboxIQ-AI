@@ -3,6 +3,7 @@ from contextlib import suppress
 from datetime import datetime, timezone
 
 from backend.config import settings
+from backend.services.supabase_service import SupabaseService
 from backend.services.email_sync_service import EmailSyncService
 from backend.utils.logger import get_logger
 
@@ -13,6 +14,7 @@ logger = get_logger(__name__)
 class BackgroundSyncService:
     def __init__(self) -> None:
         self.sync_service = EmailSyncService()
+        self.supabase_service = SupabaseService()
         self._task: asyncio.Task | None = None
         self._stop_event = asyncio.Event()
 
@@ -43,10 +45,13 @@ class BackgroundSyncService:
                     pass
 
             try:
-                await self.sync_service.sync(
-                    limit=settings.BACKGROUND_SYNC_LIMIT,
-                    mode="background",
-                )
+                users = await self.supabase_service.list_connected_users()
+                for user in users:
+                    await self.sync_service.sync(
+                        account_email=user["email"],
+                        limit=settings.BACKGROUND_SYNC_LIMIT,
+                        mode="background",
+                    )
             except Exception as exc:
                 logger.warning("Background email sync skipped: %s", exc)
 

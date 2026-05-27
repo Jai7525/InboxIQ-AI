@@ -14,8 +14,7 @@ class RAGService:
         self.supabase_service = SupabaseService()
         self.max_context_chars_per_email = 900
 
-    async def answer(self, request: ChatRequest) -> ChatResponse:
-        account_email = await self.supabase_service.get_active_account_email()
+    async def answer(self, request: ChatRequest, account_email: str) -> ChatResponse:
         emails = await self.supabase_service.list_emails(limit=100, account_email=account_email)
         self.vector_service.rebuild(emails)
 

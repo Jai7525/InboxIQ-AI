@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from backend.dependencies import CurrentUser
 from backend.models.schemas import AnalyticsResponse
 from backend.services.supabase_service import SupabaseService
 
@@ -10,8 +11,8 @@ supabase_service = SupabaseService()
 
 @router.get("/", response_model=AnalyticsResponse)
 @router.get("/overview", response_model=AnalyticsResponse)
-async def analytics() -> AnalyticsResponse:
-    account_email = await supabase_service.get_active_account_email()
+async def analytics(current_user: CurrentUser) -> AnalyticsResponse:
+    account_email = current_user["email"]
     emails = await supabase_service.list_emails(limit=500, account_email=account_email)
     by_category: dict[str, int] = {}
     by_threat: dict[str, int] = {}

@@ -15,8 +15,7 @@ class SummaryService:
         self.supabase_service = SupabaseService()
         self.local_timezone = ZoneInfo(settings.LOCAL_TIMEZONE)
 
-    async def generate_daily_summary(self) -> InboxSummaryResponse:
-        account_email = await self.supabase_service.get_active_account_email()
+    async def generate_daily_summary(self, account_email: str) -> InboxSummaryResponse:
         emails = await self.supabase_service.list_emails(limit=100, account_email=account_email)
         today_emails = [email for email in emails if self._is_today(email.received_at)]
         briefing_emails = today_emails or emails[:25]
