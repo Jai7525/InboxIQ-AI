@@ -144,9 +144,10 @@ async def _exchange_and_store_user(code: str) -> TokenResponse:
             refresh_token=token_response.refresh_token,
         )
 
-        try:
-            await EmailSyncService().sync(limit=25, mode="initial")
-        except Exception:
-            pass
+        if settings.OAUTH_INITIAL_SYNC_ENABLED:
+            try:
+                await EmailSyncService().sync(limit=settings.OAUTH_INITIAL_SYNC_LIMIT, mode="initial")
+            except Exception as exc:
+                logger.warning("Initial Gmail sync after OAuth failed: %s", exc)
 
     return token_response

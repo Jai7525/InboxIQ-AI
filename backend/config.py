@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     BACKGROUND_SYNC_ENABLED: bool = True
     BACKGROUND_SYNC_INTERVAL_SECONDS: int = 3600
     BACKGROUND_SYNC_LIMIT: int = 25
+    OAUTH_INITIAL_SYNC_ENABLED: bool = False
+    OAUTH_INITIAL_SYNC_LIMIT: int = 5
     VECTOR_STORE_DIR: Path = BASE_DIR / "vector_store"
     DATA_DIR: Path = BASE_DIR / "data"
     MOCK_MODE: bool = True
