@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { LogOut, MailCheck, Moon, Sun, Zap } from "lucide-react";
+import { LogOut, Moon, Sun, Zap } from "lucide-react";
+import inboxIqMark from "../../assets/inboxiq-mark.png";
 import { appMeta, navItems } from "../../utils/constants";
 import { useTheme } from "../../context/ThemeContext";
 import { api } from "../../services/api";
@@ -106,8 +107,12 @@ export function Sidebar({ activePage, onNavigate, mobile = false }) {
       }`}
     >
       <div className="flex items-center gap-3 px-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-primary-light dark:bg-sky-500/15 dark:text-primary-dark">
-          <MailCheck size={22} />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[13px] shadow-sm ring-1 ring-slate-200/80 dark:ring-white/10">
+          <img
+            src={inboxIqMark}
+            alt="InboxIQ AI"
+            className="h-full w-full rounded-[13px] object-cover"
+          />
         </div>
         <div>
           <p className="text-lg font-bold text-slate-950 dark:text-white">{appMeta.name}</p>
