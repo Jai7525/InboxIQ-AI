@@ -8,6 +8,7 @@ from backend.services.gmail_service import GmailService
 from backend.services.supabase_service import SupabaseService
 from backend.services.sync_state_service import SyncStateService
 from backend.services.vector_service import VectorService
+from backend.utils.logger import get_logger
 
 
 router = APIRouter()
@@ -15,6 +16,7 @@ gmail_service = GmailService()
 supabase_service = SupabaseService()
 sync_state_service = SyncStateService()
 vector_service = VectorService()
+logger = get_logger(__name__)
 
 
 @router.get("/google/login")
@@ -31,17 +33,24 @@ async def get_google_auth_url() -> AuthUrlResponse:
 
 @router.get("/google/callback")
 async def google_callback_get(code: str = Query(...)):
-    if not code:
-        raise HTTPException(status_code=400, detail="Missing OAuth authorization code.")
-    await _exchange_and_store_user(code)
-    return RedirectResponse(f"{settings.FRONTEND_URL}/?gmail=connected")
+    return await _handle_google_callback(code)
 
 
 @router.get("/google/callback2")
 async def google_callback2_get(code: str = Query(...)):
+    return await _handle_google_callback(code)
+
+
+async def _handle_google_callback(code: str) -> RedirectResponse:
     if not code:
         raise HTTPException(status_code=400, detail="Missing OAuth authorization code.")
-    await _exchange_and_store_user(code)
+
+    try:
+        await _exchange_and_store_user(code)
+    except Exception as exc:
+        logger.exception("Google OAuth callback failed: %s", exc)
+        raise HTTPException(status_code=502, detail=f"Google OAuth callback failed: {exc}") from exc
+
     return RedirectResponse(f"{settings.FRONTEND_URL}/?gmail=connected")
 
 
