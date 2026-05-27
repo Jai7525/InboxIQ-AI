@@ -37,6 +37,14 @@ async def google_callback_get(code: str = Query(...)):
     return RedirectResponse(f"{settings.FRONTEND_URL}/?gmail=connected")
 
 
+@router.get("/google/callback2")
+async def google_callback2_get(code: str = Query(...)):
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing OAuth authorization code.")
+    await _exchange_and_store_user(code)
+    return RedirectResponse(f"{settings.FRONTEND_URL}/?gmail=connected")
+
+
 @router.post("/google/callback", response_model=TokenResponse)
 async def google_callback_post(payload: AuthCallbackRequest) -> TokenResponse:
     if not payload.code:

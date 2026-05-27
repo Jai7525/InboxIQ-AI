@@ -11,6 +11,8 @@ const pageRegistry = {
   threats: lazy(() => import("./pages/ThreatCenter")),
   analytics: lazy(() => import("./pages/Analytics")),
   settings: lazy(() => import("./pages/Settings")),
+  privacy: lazy(() => import("./pages/Privacy")),
+  terms: lazy(() => import("./pages/Terms")),
 };
 
 const pagePaths = {
@@ -21,7 +23,11 @@ const pagePaths = {
   threats: "/threats",
   analytics: "/analytics",
   settings: "/settings",
+  privacy: "/privacy",
+  terms: "/terms",
 };
+
+const publicPages = new Set(["privacy", "terms"]);
 
 const pathPages = Object.entries(pagePaths).reduce((routes, [page, path]) => {
   routes[path] = page;
@@ -75,6 +81,14 @@ export default function App() {
 
     setActivePage(pageRegistry[page] ? page : "dashboard");
   };
+
+  if (publicPages.has(activePage)) {
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <Page />
+      </Suspense>
+    );
+  }
 
   return (
     <DashboardLayout activePage={activePage} onNavigate={handleNavigate} title={title}>
